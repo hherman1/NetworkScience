@@ -139,7 +139,7 @@ function renderXML(graph) {
         id:"d5",
         for:"edge",
         'attr.name':"weight",
-        'attr.type':"int"
+        'attr.type':"double"
     });
     var graphNode = xml.ele("graph",{edgedefault:'directed'});
     graph.nodes.forEach((name,index) => {
