@@ -8,6 +8,7 @@ builder = require("xmlbuilder");
 var weekdir = "weeks/"
 
 function main() {
+    // downloadYear(page);
     var matchups = parseFolder(weekdir);
     var graph = getGraph(matchups);
     fs.writeFileSync("data.graphml",makeXML(graph).toString());
@@ -25,14 +26,14 @@ function getGraph(matchups) {
         var homeID = nodes.indexOf(matchup.home.name)
         var awayID = nodes.indexOf(matchup.away.name)
         if( homeID == -1) {
-            homeID = nodes.push(matchup.home.name)
+            homeID = nodes.push(matchup.home.name) - 1
         }
         if( awayID == -1) {
-            awayID = nodes.push(matchup.away.name)
+            awayID = nodes.push(matchup.away.name) - 1
         }
         var winnerID;
         var loserID;
-        if(matchup.winner == homeID) {
+        if(matchup.home.won) {
             winnerID = homeID;
             loserID = awayID;
         } else {
@@ -112,8 +113,8 @@ function makeXML(graph) {
     graph.edges.forEach((edge,id) => {
         graphNode.ele("edge",{
             id:"e"+id,
-            source:"n"+edge.winner,
-            target:"n"+edge.loser
+            source:"n"+edge.loser,
+            target:"n"+edge.winner
         })
             .ele("data",{key:"d1"},Math.abs(edge.home.score - edge.away.score)).up()
             .ele("data",{key:"d2"},edge.date).up()
@@ -251,13 +252,16 @@ function getGame($,sbgame) {
         || cells.first().find("b").text()
         || cells.first().text();
         data.score = parseInt(cells.last().text());
+        data.won = false;
         teamsData.push(data);
     })
-    var winner = $(".row0 a>b",sbgame).text();
+    if(teamsData[0].score > teamsData[1].score)
+        teamsData[0].won = true;
+    else
+        teamsData[1].won = true;
     return {
         home:teamsData[1],
         away:teamsData[0],
-        winner:winner,
         event:event
     }
 }
