@@ -10,8 +10,8 @@ footballdb = require("./parse/footballdb");
 function main() {
     // downloadYear(page);
     var matchups = footballdb.parseFolder(footballdb.weekdir);
-    var graph = getGraphHITS(matchups);
-    fs.writeFileSync("dataHITS.graphml",renderXML(graph).toString());
+    var graph = getGraphHITSHomeAway(matchups);
+    fs.writeFileSync("dataHITSHomeAway.graphml",renderXML(graph).toString());
     //console.log(makeXML(graph).toString());
     console.log("graph written");
 }
@@ -26,6 +26,50 @@ function getGraphHITS(matchups) {
         }
         if( awayID == -1) {
             awayID = nodes.push(matchup.away.name) - 1
+        }
+        var winnerID;
+        var loserID;
+        if(matchup.home.won) {
+            winnerID = homeID;
+            loserID = awayID;
+        } else {
+            winnerID = awayID;
+            loserID = homeID;
+        }
+        edges.push({
+            source:homeID,
+            target:awayID,
+            weight:matchup.away.score
+        })
+        edges.push({
+            source:awayID,
+            target:homeID,
+            weight:matchup.home.score
+        })
+    })
+    return {
+        nodes:nodes,
+        edges:edges
+    };
+}
+function getNameHome(name) {
+    return name + "HOME"
+}
+function getNameAway(name) {
+    return name + "AWAY"
+}
+
+function getGraphHITSHomeAway(matchups) {
+    var nodes = []; // teams
+    var edges = []; // matchups
+    matchups.forEach((matchup) => {
+        var homeID = nodes.indexOf(getNameHome(matchup.home.name))
+        var awayID = nodes.indexOf(getNameAway(matchup.away.name))
+        if( homeID == -1) {
+            homeID = nodes.push(getNameHome(matchup.home.name)) - 1
+        }
+        if( awayID == -1) {
+            awayID = nodes.push(getNameAway(matchup.away.name)) - 1
         }
         var winnerID;
         var loserID;
