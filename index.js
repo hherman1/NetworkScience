@@ -138,10 +138,12 @@ function getGraphBasic(matchups) {
     };
 }
 function renderCSV(graph) {
-    var out = "home,away,year,home_score,away_score,is_event \n";
+    var out = "home,homeID,away,awayID,year,home_score,away_score,is_event \n";
     graph.edges.forEach((edge)=>{
         out+= graph.nodes[edge.home.id] + ","
+            + "n" + edge.home.id + ","
             + graph.nodes[edge.away.id] + ","
+            + "n" + edge.away.id + ","
             + edge.year + ","
             + edge.home.score + ","
             + edge.away.score + ","
