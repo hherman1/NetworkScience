@@ -1,41 +1,79 @@
+http = require("http");
+cheerio = require("cheerio");
+fs = require("fs");
+url = require("url");
+mkdirp = require("mkdirp");
+
+
 module.exports = {};
 var weekdir = "footballdb/weeks/";
 module.exports.weekdir = weekdir;
 
-function weekLocation(week) {
-    return footballdb.weekdir+week.name+"-"+week.year+".html";
-}
-module.exports.weekLocation = weekLocation;
+var defaultHost = "http://www.footballdb.com";
 
-function downloadYear(initPage) {
-    try {
-        fs.mkdirSync(weekdir);
-    } catch(err) {
-        if(err.code !== 'EEXIST') {
-            console.log(err);
-            throw e;
-        }
-    };
+function getFBPage(uri,callback) {
+    return getPage(url.resolve(defaultHost,uri),callback)
+}
+function getPage(uri,callback) {
+    http.get(uri,(res) => {
+        res.setEncoding("utf8");
+        let data = '';
+        res.on("data",(chunk) => {
+            data += chunk;
+        });
+        res.on("end",()=>{
+            callback(data)
+        });
+    }).on("error",() => {
+        console.log("error");
+        throw "error";
+    })
+}
+
+function weekName(week) {
+    return week.name+"-"+week.year+".html";
+}
+module.exports.weekName = weekName;
+
+function getYearDir(year) {
+    return "footballdb/"+year+"/weeks/"
+}
+module.exports.getYearDir = getYearDir;
+
+function downloadYearAuto(year) {
+    var initURL = getScoreURL(year);
+    getFBPage(initURL,(html) => {
+        downloadYear(html,getYearDir(year));
+    })
+}
+module.exports.downloadYearAuto = downloadYearAuto;
+
+
+function downloadYear(initPage,destination) {
+    if(destination == undefined) {
+        destination = weekdir;
+    }
+    mkdirp.sync(destination);
     var init = parsePage(initPage);
     init.weeks.forEach((week)=> {
-        if(!fs.existsSync(weekLocation(week))) {
-            console.log("Downloading " + weekLocation(week) + " ...")
-            getPage(week.href,(html) => {
-               fs.writeFile(weekLocation(week),html,(err) => {
+        if(!fs.existsSync(destination + weekName(week))) {
+            console.log("Downloading " + destination + weekName(week) + " ...")
+            getFBPage(week.href,(html) => {
+               fs.writeFile(destination + weekName(week),html,(err) => {
                    if(err) {
                        console.log(err);
                        throw err;
                    }
-                   console.log("Written " + weekLocation(week));
+                   console.log("Written " + destination + weekName(week));
                })
             })
         } else {
-            console.log(weekLocation(week) + " already exists.")
+            console.log(destination + weekName(week) + " already exists.")
         }
     })
     if(!fs.existsSync(scoreLocation(init.year))) {
         console.log("Downloading " + scoreLocation(init.year)+ " ...")
-        getPage(getScoreURL(init.year),(html) => {
+        getFBPage(getScoreURL(init.year),(html) => {
             fs.writeFile(scoreLocation(init.year),html,(err) => {
                 if(err) {
                     console.log(err);

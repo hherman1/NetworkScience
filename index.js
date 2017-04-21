@@ -1,6 +1,3 @@
-fs = require("fs");
-cheerio = require("cheerio");
-http = require("http");
 builder = require("xmlbuilder");
 
 footballdb = require("./parse/footballdb");
@@ -8,12 +5,12 @@ footballdb = require("./parse/footballdb");
 // var page = fs.readFileSync("fb_test.html","utf8");
 
 function main() {
-    // downloadYear(page);
-    var matchups = footballdb.parseFolder(footballdb.weekdir);
-    var graph = getGraphBasic(matchups);
-    fs.writeFileSync("dataHITS.csv",renderCSV(graph));
-    //console.log(makeXML(graph).toString());
-    console.log("graph written");
+    footballdb.downloadYearAuto(2012);
+
+    //  var matchups = footballdb.parseFolder(footballdb.getYearDir(2012));
+    //  var graph = getGraphBasic(matchups);
+    //  fs.writeFileSync("dataHITS.csv",renderCSV(graph));
+
 }
 function getGraphHITS(matchups) {
     var nodes = []; // teams
@@ -350,19 +347,4 @@ function makeXMLHITSScores(graph) {
 }
 
 // downloadYear(page);
-
-function getPage(uri,callback) {
-    http.get(uri,(res) => {
-        res.setEncoding("utf8");
-        let data = '';
-        res.on("data",(chunk) => {
-            data += chunk;
-        });
-        res.on("end",()=>{
-            callback(data)
-        });
-    }).on("error",() => {
-        console.log("error");
-    })
-}
 main();

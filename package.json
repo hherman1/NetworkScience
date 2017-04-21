@@ -11,6 +11,8 @@
   "dependencies": {
     "cheerio": "^0.22.0",
     "fs": "0.0.1-security",
+    "mkdirp": "^0.5.1",
+    "url": "^0.11.0",
     "xml": "^1.0.1",
     "xmlbuilder": "^8.2.2"
   }
