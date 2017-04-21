@@ -10,8 +10,8 @@ footballdb = require("./parse/footballdb");
 function main() {
     // downloadYear(page);
     var matchups = footballdb.parseFolder(footballdb.weekdir);
-    var graph = getGraphHITSHomeAway(matchups);
-    fs.writeFileSync("dataHITSHomeAway.graphml",renderXML(graph).toString());
+    var graph = getGraphBasic(matchups);
+    fs.writeFileSync("dataHITS.csv",renderCSV(graph));
     //console.log(makeXML(graph).toString());
     console.log("graph written");
 }
@@ -81,11 +81,6 @@ function getGraphHITSHomeAway(matchups) {
             loserID = homeID;
         }
         edges.push({
-            source:homeID,
-            target:awayID,
-            weight:matchup.away.score
-        })
-        edges.push({
             source:awayID,
             target:homeID,
             weight:matchup.home.score
@@ -141,6 +136,18 @@ function getGraphBasic(matchups) {
         nodes:nodes,
         edges:edges
     };
+}
+function renderCSV(graph) {
+    var out = "home,away,year,home_score,away_score,is_event \n";
+    graph.edges.forEach((edge)=>{
+        out+= graph.nodes[edge.home.id] + ","
+            + graph.nodes[edge.away.id] + ","
+            + edge.year + ","
+            + edge.home.score + ","
+            + edge.away.score + ","
+            + (edge.event != "") + "\n";
+    })
+    return out;
 }
 function renderXML(graph) {
     var xml = builder.create('graphml').att({
