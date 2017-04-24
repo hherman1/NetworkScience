@@ -1,16 +1,24 @@
 builder = require("xmlbuilder");
 
-footballdb = require("./parse/footballdb");
+FootballDBParser = require("./parse/footballdb");
+NCAAParser = require("./parse/ncaa");
 
 // var page = fs.readFileSync("fb_test.html","utf8");
 
 function main() {
-    footballdb.downloadYearAuto(2012);
+    parser = new NCAAParser("d3");
 
-    //  var matchups = footballdb.parseFolder(footballdb.getYearDir(2012));
-    //  var graph = getGraphBasic(matchups);
-    //  fs.writeFileSync("dataHITS.csv",renderCSV(graph));
+    // parser.downloadYearAuto(2016);
 
+       var matchups = parser.parseYear(2016);
+       var graph = getGraphHITSHomeAway(matchups);
+    // //   graph = filterEdges(graph,(edge) => {
+    //         return !edge.is_event;
+    //     });
+        fs.writeFileSync("dataD3HITSHomeAway.graphml",renderXML(graph));
+    //   var graph = getGraphBasic(matchups);
+    //  fs.writeFileSync("data.csv",renderCSV(graph));
+       console.log("graph written.")
 }
 function getGraphHITS(matchups) {
     var nodes = []; // teams
@@ -50,10 +58,16 @@ function getGraphHITS(matchups) {
     };
 }
 function getNameHome(name) {
-    return name + "HOME"
+    return "H" + name
 }
 function getNameAway(name) {
-    return name + "AWAY"
+    return "A" + name 
+}
+function filterEdges(graph,filter) {
+    return {
+        nodes:graph.nodes,
+        edges:graph.edges.filter(filter)
+    }
 }
 
 function getGraphHITSHomeAway(matchups) {
@@ -77,10 +91,18 @@ function getGraphHITSHomeAway(matchups) {
             winnerID = awayID;
             loserID = homeID;
         }
+
         edges.push({
             source:awayID,
             target:homeID,
-            weight:matchup.home.score
+            weight:matchup.home.score,
+            is_event:matchup.event != ""
+        })
+        edges.push({
+            source:homeID,
+            target:awayID,
+            weight:matchup.away.score,
+            is_event:matchup.event != ""
         })
     })
     return {
@@ -135,13 +157,14 @@ function getGraphBasic(matchups) {
     };
 }
 function renderCSV(graph) {
-    var out = "home,homeID,away,awayID,year,home_score,away_score,is_event \n";
+    var out = "home,homeID,away,awayID,year,week,home_score,away_score,is_event \n";
     graph.edges.forEach((edge)=>{
         out+= graph.nodes[edge.home.id] + ","
             + "n" + edge.home.id + ","
             + graph.nodes[edge.away.id] + ","
             + "n" + edge.away.id + ","
             + edge.year + ","
+            + edge.week + ","
             + edge.home.score + ","
             + edge.away.score + ","
             + (edge.event != "") + "\n";

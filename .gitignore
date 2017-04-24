@@ -1,5 +1,7 @@
 weeks
 *.graphml
 *.csv
+*.html
+*.zip
 node_modules
 fb_test_files
