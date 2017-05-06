@@ -52,6 +52,7 @@ var parserClass = class Parser {
     downloadYearAuto(year) {
         var initURL = this.getScoreURL(year);
         this.getSubURL(initURL,(html) => {
+            console.log("Processing " + initURL);
             this.downloadYear(html,this.getYearDir(year));
         })
     }

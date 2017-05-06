@@ -6,16 +6,17 @@ NCAAParser = require("./parse/ncaa");
 // var page = fs.readFileSync("fb_test.html","utf8");
 
 function main() {
-    parser = new NCAAParser("d3");
+    // parser = new NCAAParser("d3","midwest-conference");
+    parser = new NCAAParser("fbs");
 
-    // parser.downloadYearAuto(2016);
+     //parser.downloadYearAuto(2016);
 
        var matchups = parser.parseYear(2016);
        var graph = getGraphHITSHomeAway(matchups);
     // //   graph = filterEdges(graph,(edge) => {
     //         return !edge.is_event;
-    //     });
-        fs.writeFileSync("dataD3HITSHomeAway.graphml",renderXML(graph));
+    //     }); 
+        fs.writeFileSync("dataD1HITSHomeAway.graphml",renderXML(graph));
     //   var graph = getGraphBasic(matchups);
     //  fs.writeFileSync("data.csv",renderCSV(graph));
        console.log("graph written.")
