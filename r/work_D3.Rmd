@@ -1,0 +1,358 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(igraph)
+library(DataComputing)
+library(plyr)
+library(dplyr)
+library(stringr)
+f=read.graph('data/dataD3.graphml',format = "graphml")
+g=read.graph('data/dataD3HITS.graphml',format = "graphml")
+h=read.graph('data/dataD3HITSHomeAway.graphml',format = "graphml")
+```
+
+```{r}
+test_vertex = V(g)[1]
+incident(g,test_vertex) # edges involving  test_vertex
+test_edge = E(g)[1]
+
+ends(g,test_edge) # vertices involved in test_edge: [1] = from, [2] = to; [1] -> [2]
+test_edge$weight # weight of edge
+
+test_edge = E(g)[2]
+test_edge$weight
+
+as.matrix(g) # adjacency matrix, merged edges
+
+```
+```{r}
+incident(g,V(g)[39])
+  
+V(g)[39]
+
+```
+
+```{r}
+initOffenseDefense = function(graph) {
+  num_vertices = length(V(graph))
+  offense = rep(1,num_vertices)
+  defense = rep(1,num_vertices)
+  list(offense=offense,defense=defense)
+}
+initOffenseDefenseHomeAway = function(graph) {
+  offense = rep(1,length(V(graph)))
+  e = .5*10^-5
+  Adj = as.matrix(get.adjacency(graph,attr='weight'))
+  Adj = Adj + e*(offense %*% t(offense) - diag(length(V(graph))))
+  get_games_ratios = function(g) {
+    max(degree(g))/degree(g)
+  }
+  games_ratios = get_games_ratios(graph)
+  out = list(
+    Adj= Adj,
+    offense.home = offense,
+    offense.away = offense,
+    games_ratios = games_ratios
+  )
+  return(out)
+}
+```
+
+```{r}
+offense = rep(1,length(V(g)))
+e = .5*10^-8
+Adj = as.matrix(get.adjacency(g,attr='weight'))
+Adj = Adj + e*(offense %*% t(offense) - diag(length(V(g))))
+get_games_ratios = function(g) {
+  max(degree(g))/degree(g)
+}
+games_ratios = get_games_ratios(g)
+```
+
+```{r}
+update = function(A,o,games_ratios) {
+  (t(A) %*% (1/(games_ratios*(A %*% (1/o)))))* games_ratios 
+}
+run_alg = function(A,o,games_ratios,epsilon = 0.5*10^-4) {
+  diff = Inf
+  while(diff > epsilon) {
+    new_o = update(A,o,games_ratios)
+    diffVect = new_o - o
+    diff = sqrt(t(new_o - o) %*% (new_o - o))
+    o = new_o
+  }
+  return(o)
+}
+get_defense = function(A,o,games_ratios) {
+  (A %*% (1/o)) * games_ratios
+}
+final_offense = run_alg(Adj, offense,games_ratios)
+final_defense = get_defense(Adj,final_offense,games_ratios)
+
+```
+
+```{r}
+runHomeAway = function(graph) {
+  offense = rep(1,length(V(graph)))
+  e = .5*10^-5
+  Adj = as.matrix(get.adjacency(graph,attr='weight'))
+  Adj = Adj + e*(offense %*% t(offense) - diag(length(V(graph))))
+  get_games_ratios = function(graph) {
+    max(degree(graph))/degree(graph)
+  }
+  games_ratios = get_games_ratios(graph)
+  
+  print("Running algorithm...")
+  
+  final_offense = run_alg(Adj, offense,games_ratios)
+  
+  print("Finished.")
+  final_defense = get_defense(Adj,final_offense,games_ratios)
+  
+  results = final_offense/final_defense
+  results[degree(graph,1:length(V(graph)),mode="in") < 3] = 0
+  resultsVect = results[order(results,decreasing = TRUE),,drop=FALSE] # sort
+  
+  return(
+    list(offense=final_offense,
+         defense=final_defense,
+         results=resultsVect)
+  )
+}
+```
+
+```{r}
+results = runHomeAway(h)
+```
+```{r}
+rankings = data.frame(name = V(g)$name)
+rankings["offense.home"] = 0
+rankings["defense.home"] = 0
+rankings["offense.away"] = 0
+rankings["defense.away"] = 0
+
+for(i in 1:length(V(h))) {
+  teamname = V(h)[i]$name
+  is_home = substr(teamname,1,1) == "H"
+  teamname.nat = substr(teamname,2,nchar(teamname));
+  
+  team.homedegree = degree(h,V(h)[V(h)$name == paste("H",teamname.nat,sep="")],mode="in")
+  team.awaydegree = degree(h,V(h)[V(h)$name == paste("A",teamname.nat,sep="")],mode="in")
+
+  team.combineddeg = (if (length(team.homedegree)) team.homedegree else 0)  +  (if (length(team.awaydegree)) team.awaydegree else 0)
+
+  if(team.combineddeg > 4) {
+    selection = rankings["name"] == teamname.nat
+    if(is_home) {
+        rankings[selection,"offense.home"] = (results$offense[i])
+        rankings[selection,"defense.home"] = 1/(results$defense[i])
+    } else {
+        rankings[selection,"offense.away"] = results$offense[i]
+        rankings[selection,"defense.away"] = 1/(results$defense[i])
+    }
+  }
+}
+
+```
+
+
+```{r}
+offenseVect =final_offense / sum(final_offense)
+offenseVect =offenseVect / sum(offenseVect)
+offenseVect[degree(g,1:length(V(g)),mode="in") <7] = 0
+
+
+
+defenseVect = 1/(final_defense)
+defenseVect = defenseVect/sum(defenseVect)
+print(sum(defenseVect))
+defenseVect[degree(g,1:length(V(g)),mode="in") < 7] = 0
+
+teamScore = defenseVect*offenseVect
+
+defenseVect = defenseVect[order(defenseVect,decreasing = TRUE),,drop=FALSE]
+offenseVect = offenseVect[order(offenseVect,decreasing = TRUE),,drop=FALSE]
+teamScore = teamScore[order(teamScore,decreasing = TRUE),,drop=FALSE]
+
+
+
+
+```
+
+##BRUTE FORCE OD
+```
+update_OD = function(o,d,g,num_vertices,max_games=15,epsilon=10^-5){
+  new_offense = o
+  new_defense = d
+  #update offense
+  for(i in 1:num_vertices) {
+    edges = incident(g,V(g)[i],mode="in")
+    num_games = length(edges)
+    scores = edges$weight + epsilon
+    froms =  ends(g,edges,names=FALSE)[,1]
+    froms.defense = d[froms]
+    new_offense[i] = sum(scores/froms.defense) * (max_games/num_games)
+  }
+  for(i in 1:num_vertices) {
+    edges = incident(g,V(g)[i],mode="out")
+    num_games = length(edges)
+    scores = edges$weight + epsilon
+    tos =  ends(g,edges,names=FALSE)[,2]
+    tos.offense = o[tos]
+    new_defense[i] = sum(scores/tos.offense) * (max_games/num_games)
+  }
+  return(list(offense = new_offense,defense = new_defense))
+}
+
+run_OD = function(o,d,g,epsilon = 10^-5,tol = .5*10^-1){
+  diff = Inf
+  num_vertices = length(V(g))
+  while(diff > tol){
+    updatedVects = update_OD(o,d,g,num_vertices,epsilon = epsilon)
+    new_o = updatedVects$offense
+    new_d = updatedVects$defense
+    
+    o_dist = sqrt(t(new_o - o) %*% (new_o - o))
+    d_dist = sqrt(t(new_d - d) %*% (new_d - d))
+    diff = o_dist + d_dist
+    
+    o = new_o
+    d = new_d
+  }
+  return(list(offense =o, defense = d))
+}
+```
+
+## MARKOV METHOD
+```{r}
+MarkAdj = sqrt(Adj)
+for(i in 1:nrow(MarkAdj))
+MarkAdj[i,] = MarkAdj[i,]/sum(MarkAdj[i,])
+tMark = t(MarkAdj)
+domEigen = eigen(tMark)$vectors[,1]
+domEigen = Re(domEigen)/sum(Re(domEigen))
+domEigen[degree(g,1:length(V(g)),mode="in")<5] = 0
+
+MarkVect_2016 =cbind(V(g)$name,domEigen)
+MarkVect_2016 = MarkVect_2016[order(MarkVect_2016[,2],decreasing =TRUE),,drop=FALSE]
+
+```
+
+```{r}
+MarkDF = data.frame(MarkVect_2016)
+MarkDF = rename(MarkDF, c("V1"="Name", "domEigen" = "MarkScore"))
+View(MarkDF)
+```
+
+```
+offense = rep(1,length(V(g)))
+defense = rep(1,length(V(g)))
+list = run_OD(offense,defense,g)
+print(List$offense)
+print(List$defense)
+```
+
+##DATA MANIPULATION
+```{r}
+View(rankings)
+
+```
+
+```{r}
+# rankings
+rankings.home = rankings[ , c("name","offense.home","defense.home")]
+rankings.away = rankings[ , c("name","offense.away","defense.away")]
+
+rankings.home$offense.home = rankings.home$offense.home/sum(rankings.home$offense.home)
+rankings.home$defense.home = rankings.home$defense.home/sum(rankings.home$defense.home)
+rankings.away$offense.away = rankings.away$offense.away/sum(rankings.away$offense.away)
+rankings.away$defense.away = rankings.away$defense.away/sum(rankings.away$defense.away)
+
+rankings <- rankings.home %>%
+  left_join(rankings.away, by =c("name"="name"))
+
+
+
+```
+
+```{r}
+O = data.frame(offenseVect)
+O$Name <- row.names(O)
+O= O[c(2,1)]
+D = data.frame(defenseVect)
+D$Name <- row.names(D)
+D = D[c(2,1)]
+Team=data.frame(teamScore)
+Team$Name<- row.names(Team)
+Team=Team[c(2,1)]
+
+OD <- O %>%
+  left_join(D,by = c("Name"="Name")) %>%
+  left_join(Team, by = c("Name"="Name"))
+
+DO <-D %>%
+  left_join(O,by =c("Name"="Name")) %>%
+  left_join(Team,by=c("Name"="Name"))
+
+TeamOD <-Team %>%
+  left_join(D,by = c("Name"="Name")) %>%
+  left_join(O,by =c("Name"="Name"))
+
+  
+
+
+```
+
+```{r}
+MacOpponents = c("Carleton","Hamline","Illinois Col.","Ripon","Lake Forest","St. Norbert","Grinnell","Beloit","Lawrence","Cornell (Iowa)","Macalester")
+# Macalester = "Macalester"
+
+MacTOD <- 
+  filter(TeamOD,Name %in% MacOpponents)
+
+
+
+```
+
+
+```{r}
+data <- read.csv('data/dataD3.CSV')
+data2016 <- data[c(1:9)]
+data2016 <- data2016 %>%
+  mutate(data2016, is_event.bool = ifelse(is_event =="false", 0,1))
+data2016 <- data2016[-c(9)]
+data2016 <- rename(data2016, c("is_event.bool" = "is.event"))
+
+```
+
+```{r}
+# View(data2016)
+data2016 = rename(data2016, c("home"="Home","away"="Away"))
+
+```
+
+```{r}
+
+data2016 <- data2016 %>%
+  left_join(OD,by = c("Home" = "Name")) %>%
+  left_join(OD,by = c("Away" = "Name")) %>%
+  left_join(MarkDF,by = c("Home" = "Name" )) %>%
+  left_join(MarkDF,by = c("Away" = "Name")) %>%
+  left_join(rankings.home,by = c("Home"="name")) %>%
+  left_join(rankings.away,by = c("Away" = "name"))
+
+data2016 <- rename(data2016, c("offenseVect.x" = "O.Home", "defenseVect.x"="D.Home","offenseVect.y"="O.Away","defenseVect.y"="D.Away","MarkScore.x" = "Markov.Home","MarkScore.y"="Markov.Away", "offense.home"="O.HomeOnly", "defense.home"="D.HomeOnly","offense.away"="O.AwayOnly","defense.away"="D.AwayOnly"))
+```
+
+
+```{r}
+write.csv(data2016, file = "D3_2016_Data.csv")
+
+```
